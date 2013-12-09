@@ -18,7 +18,6 @@ import org.apache.commons.io.IOUtils;
 import org.apache.log4j.Logger;
 
 import com.highcharts.export.converter.SVGConverterException;
-import static com.highcharts.export.server.Server.logger;
 import com.highcharts.export.util.TempDir;
 
 public class Server {
@@ -55,9 +54,30 @@ public class Server {
 			process = new ProcessBuilder(commands).start();
 			final BufferedReader bufferedReader = new BufferedReader(
 					new InputStreamReader(process.getInputStream()));
+			final ByteArrayOutputStream bout = new ByteArrayOutputStream();
+			Thread thread = new Thread(new Runnable() {
+				@Override
+				public void run() {
+					try (InputStream in = process.getErrorStream()) {
+						byte[] buf = new byte[2048];
+						for (int len; (len = in.read(buf)) != -1;) {
+							bout.write(buf, 0, len);
+						}
+					} catch (IOException e) {
+						logger.info("ignore EX", e);
+					}
+				}
+			});
+			thread.setDaemon(true);
+			thread.start();
 			String readLine = bufferedReader.readLine();
 			if (readLine == null || !readLine.contains("ready")) {
-				throw new RuntimeException("Error, PhantomJS couldnot start");
+				try {
+					Thread.sleep(100);
+				} catch(InterruptedException e) {}
+				String info = readLine == null ? "" : readLine;
+				if (bout.size() > 0) info += "err: " + bout.toString();
+				throw new RuntimeException("Error, PhantomJS couldnot start " + info);
 			}
 
 			initialize();
