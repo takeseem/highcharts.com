@@ -166,7 +166,7 @@ public class ServerObjectFactory implements ObjectFactory<Server> {
 	public void afterBeanInit() {
 		String jarLocation = getClass().getProtectionDomain().getCodeSource().getLocation().getPath();
 		try {
-			jarLocation = URLDecoder.decode(jarLocation, "utf-8");
+			jarLocation = URLDecoder.decode(jarLocation, "UTF-8");
 			// get filesystem depend path
 			jarLocation = new File(jarLocation).getCanonicalPath();
 		} catch (UnsupportedEncodingException ueex) {
@@ -175,8 +175,13 @@ public class ServerObjectFactory implements ObjectFactory<Server> {
 			logger.error(ioex);
 		}
 
-		try {
-			JarFile jar = new JarFile(jarLocation);
+		Path jarPath = Paths.get(jarLocation);
+		if (Files.isDirectory(jarPath)) {
+			TempDir.tmpDir = jarPath;
+			return;
+		}
+		
+		try (JarFile jar = new JarFile(jarPath.toFile())) {
 			for (Enumeration<JarEntry> entries = jar.entries(); entries.hasMoreElements();) {
 				JarEntry entry = entries.nextElement();
 				String name = entry.getName();

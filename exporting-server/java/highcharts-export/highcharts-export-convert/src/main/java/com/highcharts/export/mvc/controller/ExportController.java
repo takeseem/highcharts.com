@@ -12,6 +12,7 @@ package com.highcharts.export.mvc.controller;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.NoSuchElementException;
@@ -28,7 +29,6 @@ import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.io.IOUtils;
-import org.apache.commons.lang.RandomStringUtils;
 import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpEntity;
@@ -78,7 +78,7 @@ public class ExportController extends HttpServlet {
 		boolean isAndroid = request.getHeader("user-agent") != null && request.getHeader("user-agent").contains("Android");
 
 		if (isAndroid || MimeType.PDF.equals(mime) || async) {
-			tempFilename = createUniqueFileName(mime.name().toLowerCase());
+			tempFilename = Files.createTempFile(TempDir.outputDir, "", "." + mime.name().toLowerCase()).toString();
 		}
 
 		String output = processRequest(svg, mime, width, scale, options, constructor, callback, tempFilename);
@@ -103,7 +103,7 @@ public class ExportController extends HttpServlet {
 	    HttpHeaders headers = new HttpHeaders();
 		headers.add("Content-Type", mime.getType() + "; charset=utf-8");
 		headers.add("Content-Disposition",
-                   "attachment; filename=" + filename.replace(" ", "_") + "." + mime.name().toLowerCase());
+                   "attachment; filename=\"" + new String((filename + "." + mime.name().toLowerCase()).getBytes(), "ISO8859-1") + "\"");
 		headers.setContentLength(stream.size());
 
 		return new HttpEntity<byte[]>(stream.toByteArray(), headers);
@@ -280,11 +280,6 @@ public class ExportController extends HttpServlet {
 			}
 		}
 		return null;
-	}
-
-	public String createUniqueFileName(String extension) {
-		Path path = Paths.get(TempDir.outputDir.toString(), RandomStringUtils.randomAlphanumeric(8) + "." + extension);
-		return path.toString();
 	}
 
 	private ByteArrayOutputStream ouputToStream(String output, MimeType mime, String filename) {
